@@ -10,16 +10,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Java 21
-        uses: actions/setup-java@v5
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
+          cache: maven
 
-      - name: Build JAR
+      - name: Build Spring Boot Application
         run: |
           chmod +x mvnw
           ./mvnw clean package -DskipTests
@@ -46,6 +47,19 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/spring-boot-ci-demo:latest
+
             docker stop spring-demo || true
             docker rm spring-demo || true
-            docker run -d --name spring-demo -p 8080:8080 ${{ secrets.DOCKERHUB_USERNAME }}/spring-boot-ci-demo:latest
+
+            docker stop $(docker ps -q) || true
+            docker rm $(docker ps -aq) || true
+
+            docker container prune -f
+
+            docker run -d \
+              --name spring-demo \
+              -p 8080:8080 \
+              --restart unless-stopped \
+              ${{ secrets.DOCKERHUB_USERNAME }}/spring-boot-ci-demo:latest
+
+            docker ps
